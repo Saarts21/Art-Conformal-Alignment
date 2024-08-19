@@ -1,15 +1,11 @@
-import requests
-import numpy as np
-from access_token import HF_TOKEN
-import tensorflow as tf
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-from keras.preprocessing import *
+import requests
 import tensorflow as tf
-from tensorflow.keras.layers import *
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from PIL import Image
+from keras.preprocessing import *
+
+from access_token import HF_TOKEN
 
 # Prepare features for g - the alignment predictor
 # g(X_i,f(X_i)) = A_hat
@@ -25,15 +21,18 @@ ZERO_SHOT_CONFIDENCE_THRESHOLD = 0.7
 
 headers = {"Authorization": f"Bearer {HF_TOKEN}"}
 
+
 def image_query(api_url, filename):
     with open(filename, "rb") as f:
         data = f.read()
     response = requests.post(api_url, headers=headers, data=data)
     return response.json()
 
+
 def text_query(api_url, payload):
-	response = requests.post(api_url, headers=headers, json=payload)
-	return response.json()
+    response = requests.post(api_url, headers=headers, json=payload)
+    return response.json()
+
 
 def extract_objects_from_generated_image(generated_image):
     """
@@ -45,16 +44,16 @@ def extract_objects_from_generated_image(generated_image):
     objects_dict = {d['label']: d['score'] for d in detections if d['score'] > OBJECT_DETECTION_CONFIDENCE_THRESHOLD}
     return list(objects_dict.keys())
 
+
 def extract_artist_from_prompt(prompt):
     """
     Assuming the beginning of the prompt is in this format:
     'Draw the painting by Vincent Van Gogh as following.'
     """
-    words = prompt.split(".")
-    words = words[0].split("by ")
-    words = words[1].split(" as")
-    artist = words[0]
+    words = prompt.split(" ")
+    artist = words[4]
     return artist
+
 
 def extract_features_from_prompt(prompt):
     artist = extract_artist_from_prompt(prompt)
@@ -82,6 +81,7 @@ artists_top = pd.DataFrame(data, columns=columns)
 batch_size = 16
 train_input_shape = (224, 224, 3)
 
+
 def artists_prediction_probabilities(generated_image_path):
     test_image = image.load_img(generated_image_path, target_size=(train_input_shape[0:2]))
     # Predict artist
@@ -95,10 +95,12 @@ def artists_prediction_probabilities(generated_image_path):
     # Store probabilities in a dictionary
     return prediction_probabilities
 
+
 def extract_features_from_generated_image(generated_image):
     objects = extract_objects_from_generated_image(generated_image)
     artists_pred_prob = artists_prediction_probabilities(generated_image)
     return objects, artists_pred_prob
+
 
 def count_objects_in_prompt(prompt, objects):
     """
@@ -107,8 +109,8 @@ def count_objects_in_prompt(prompt, objects):
     Returns the number of predicted objects.
     """
     output = text_query(ZERO_SHOT_API_URL, {"inputs": prompt,
-        "parameters": {"candidate_labels": objects},
-    })
+                                            "parameters": {"candidate_labels": objects},
+                                            })
     labels = output['labels']
     scores = output['scores']
 
@@ -118,6 +120,7 @@ def count_objects_in_prompt(prompt, objects):
 
 
 def artist_string_to_index(artist_string):
+    artist_string = artist_string.replace('_', ' ')
     for index, row in artists_top.iterrows():
         if artist_string == row['name']:
             return index
@@ -125,6 +128,7 @@ def artist_string_to_index(artist_string):
 
 def feature_extraction(prompt, generated_image):
     """
+    generated_image is path
     Returns a numpy vector with real numbers as features
     """
     # prompt features
@@ -142,13 +146,21 @@ def feature_extraction(prompt, generated_image):
 
     return np.stack((ground_truth_artist, predicted_prob_artists, shared_elements_count))
 
-def prepare_data():
-    table_path = "../data/artworks_data_with_prompts_simple_generated_images"
-    df = pd.read_csv(table_path)
-    for index, row in df.iterrows():
-        prompt = row['prompt']
-        prompt = prompt.replace('_', ' ')
-        row['prompt'] = prompt
-    df.to_csv(table_path)
 
-prepare_data()
+# def prepare_data():
+#     table_path = "../data/artworks_data_with_prompts_simple_generated_images"
+#     df = pd.read_csv(table_path)
+#     for index, row in df.iterrows():
+#         prompt = row['prompt']
+#         prompt = prompt.replace('_', ' ')
+#         row['prompt'] = prompt
+#     df.to_csv(table_path)
+#
+# prepare_data()
+
+if __name__ == '__main__':
+    generated_path = "../data/artwork_gen_dalle/Almond_Blossoms_Vincent_van_Gogh.png"
+    generated = Image.open(generated_path)
+    prompt = "Draw the painting by Vincent_van_Gogh As following. Create an artwork inspired by Van Gogh's 'Almond Blossoms,' featuring a blossoming almond branch in a glass vase. Include vibrant colors and a modern artistic touch, reminiscent of a peach tree in bloom."
+    print(feature_extraction(prompt, generated_path))
+
