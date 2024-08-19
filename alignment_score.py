@@ -128,8 +128,11 @@ def true_alignment_score(generated, reference):
         return 1
     return 0
 
+
 # Unit test
 generated = Image.open('generated.jpeg')
 reference = Image.open('reference.jpeg')
 a = true_alignment_score(generated, reference)
 assert a == 1
+
+
