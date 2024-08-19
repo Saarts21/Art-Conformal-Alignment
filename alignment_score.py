@@ -18,6 +18,7 @@ num_of_ref_images = os.listdir("alignment_false_references/")
 num_of_ref_images = [file for file in num_of_ref_images if "jpeg" in file]
 num_of_ref_images = len(num_of_ref_images)
 
+TOP_K = 3
 
 def image_preprocess(img):
     """
@@ -54,8 +55,9 @@ def similarity_alignment(generated, reference):
         ssim = similarity_score(generated, random_guess)
         ssim_list.append(ssim)
 
-    return np.argmax(ssim_list) == 0
-
+    ssim_list = np.array(ssim_list)
+    top_k_indices = np.argsort(ssim_list)[-TOP_K:][::-1]
+    return 0 in top_k_indices
 
 def generate_color_palette(img):
     img = img.convert('P', palette=Image.Palette.ADAPTIVE, colors=FIXED_PALETTE_SIZE)
@@ -122,7 +124,9 @@ def color_alignment(generated, reference):
         pas = palette_similarity(generated_palette, random_guess)
         pas_list.append(pas)
 
-    return np.argmin(pas_list) == 0
+    pas_list = np.array(pas_list)
+    top_k_indices = np.argsort(pas_list)[:TOP_K]
+    return 0 in top_k_indices
 
 
 def true_alignment_score(generated, reference):
@@ -145,25 +149,29 @@ def true_alignment_score(generated, reference):
 # reference = Image.open('reference.jpeg')
 # a = true_alignment_score(generated, reference)
 def compute_alignment_score():
-    df = pd.read_csv("../data/artworks_data_with_prompts_simple_generated_images.csv")
+    table_path = "data.csv"
+    df = pd.read_csv(table_path)
     df['alignment_score'] = pd.NA
+    a_list = []
 
     a_count = 0
-    for index, row in tqdm(df.iterrows(), total=df.shape[0], desc="Processing Images"):
-        # print("--- ", index, " ---")
+    for index, row in df.iterrows():
         generated_path = row[('generated_artwork_name')]
         original_path = row[('image_path_named')]
         try:
             generated = Image.open(generated_path)
             reference = Image.open(original_path)
             a = true_alignment_score(generated, reference)
-            a_count += 1
+            a_count += a
         except Exception as e:
             print(e)
             a = -1
-        row['alignment_score'] = a
-        print(a)
+        a_list.append(a)
+        if (index + 1) % 10 == 0:
+            print(f"{a_count} out of {index + 1} aligned")
     
     print(f"total aligned samples: {a_count}")
+    df['alignment_score'] = a_list
+    df.to_csv(table_path, index=False)
 
-compute_alignment_score()
+#compute_alignment_score()
