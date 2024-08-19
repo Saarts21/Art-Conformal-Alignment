@@ -140,21 +140,30 @@ def true_alignment_score(generated, reference):
         return 1
     return 0
 
-
 # usage example
-generated = Image.open('generated.jpeg')
-reference = Image.open('reference.jpeg')
-a = true_alignment_score(generated, reference)
-
-
-if __name__ == '__main__':
+# generated = Image.open('generated.jpeg')
+# reference = Image.open('reference.jpeg')
+# a = true_alignment_score(generated, reference)
+def compute_alignment_score():
     df = pd.read_csv("../data/artworks_data_with_prompts_simple_generated_images.csv")
+    df['alignment_score'] = pd.NA
+
     a_count = 0
     for index, row in tqdm(df.iterrows(), total=df.shape[0], desc="Processing Images"):
         # print("--- ", index, " ---")
         generated_path = row[('generated_artwork_name')]
         original_path = row[('image_path_named')]
-        generated = Image.open('generated.jpeg')
-        reference = Image.open('reference.jpeg')
-        a = true_alignment_score(generated, reference)
-        a_count += 1
+        try:
+            generated = Image.open(generated_path)
+            reference = Image.open(original_path)
+            a = true_alignment_score(generated, reference)
+            a_count += 1
+        except Exception as e:
+            print(e)
+            a = -1
+        row['alignment_score'] = a
+        print(a)
+    
+    print(f"total aligned samples: {a_count}")
+
+compute_alignment_score()
