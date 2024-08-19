@@ -1,19 +1,23 @@
-import numpy as np
-from PIL import Image
-import matplotlib.pyplot as plt
-import skimage
-from scipy.spatial.distance import cdist
 import os
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import skimage
+from PIL import Image
+from scipy.spatial.distance import cdist
+from tqdm import tqdm
 
 # Compute the alignment score A_i
 
 
-FIXED_IMG_SIZE = (100,100)
+FIXED_IMG_SIZE = (100, 100)
 FIXED_PALETTE_SIZE = 10
 
 num_of_ref_images = os.listdir("alignment_false_references/")
 num_of_ref_images = [file for file in num_of_ref_images if "jpeg" in file]
 num_of_ref_images = len(num_of_ref_images)
+
 
 def image_preprocess(img):
     """
@@ -21,12 +25,14 @@ def image_preprocess(img):
     output: numpy array
     """
     img = img.resize(FIXED_IMG_SIZE)
-    img = img.convert('1') # black and white
+    img = img.convert('1')  # black and white
     img = np.asarray(img, dtype=np.float32)
     return img
 
+
 def similarity_score(img1, img2):
-    return skimage.metrics.structural_similarity(img1, img2, data_range=1.0) # high is good
+    return skimage.metrics.structural_similarity(img1, img2, data_range=1.0)  # high is good
+
 
 def similarity_alignment(generated, reference):
     ssim_list = []
@@ -37,7 +43,7 @@ def similarity_alignment(generated, reference):
     ssim_list.append(similarity_score(generated, reference))
 
     for i in range(num_of_ref_images):
-        ref_img = Image.open(f"alignment_false_references/{i+1}.jpeg")
+        ref_img = Image.open(f"alignment_false_references/{i + 1}.jpeg")
         ref_img = image_preprocess(ref_img)
         ssim = similarity_score(generated, ref_img)
         ssim_list.append(ssim)
@@ -50,13 +56,15 @@ def similarity_alignment(generated, reference):
 
     return np.argmax(ssim_list) == 0
 
+
 def generate_color_palette(img):
-    img = img.convert('P', palette=Image.ADAPTIVE, colors=FIXED_PALETTE_SIZE)
-    palette = img.getpalette() # RGB values
-    palette = [palette[i:i+3] for i in range(0, len(palette), 3)]
+    img = img.convert('P', palette=Image.Palette.ADAPTIVE, colors=FIXED_PALETTE_SIZE)
+    palette = img.getpalette()  # RGB values
+    palette = [palette[i:i + 3] for i in range(0, len(palette), 3)]
     palette = palette[0:FIXED_PALETTE_SIZE]
-    palette = [(r/255, g/255, b/255) for r, g, b in palette] # normalize
+    palette = [(r / 255, g / 255, b / 255) for r, g, b in palette]  # normalize
     return palette
+
 
 def visualize_palettes(generated_palette, reference_palette):
     _, ax = plt.subplots(figsize=(FIXED_PALETTE_SIZE + 1, 4))  # Extra space for labels
@@ -72,6 +80,7 @@ def visualize_palettes(generated_palette, reference_palette):
     plt.tight_layout()
     plt.show()
 
+
 def palette_similarity(generated_palette, reference_palette):
     # transform RGB to CIELAB
     generated_palette = [RGB_to_LAB(rgb) for rgb in generated_palette]
@@ -80,7 +89,8 @@ def palette_similarity(generated_palette, reference_palette):
     distances = cdist(generated_palette, reference_palette, metric='euclidean')
     min_distances = np.min(distances, axis=1)
     similarity_score = np.mean(min_distances)
-    return similarity_score # low is good
+    return similarity_score  # low is good
+
 
 def RGB_to_LAB(rgb):
     """
@@ -90,17 +100,18 @@ def RGB_to_LAB(rgb):
     """
     return skimage.color.rgb2lab(rgb)
 
+
 def color_alignment(generated, reference):
-    pas_list = [] # palette similarity scores
+    pas_list = []  # palette similarity scores
 
     # true reference
     generated_palette = generate_color_palette(generated)
     reference_palette = generate_color_palette(reference)
-    #visualize_palettes(generated_palette, reference_palette)
+    # visualize_palettes(generated_palette, reference_palette)
     pas_list.append(palette_similarity(generated_palette, reference_palette))
 
     for i in range(num_of_ref_images):
-        ref_img = Image.open(f"alignment_false_references/{i+1}.jpeg")
+        ref_img = Image.open(f"alignment_false_references/{i + 1}.jpeg")
         ref_pal = generate_color_palette(ref_img)
         pas = palette_similarity(generated_palette, ref_pal)
         pas_list.append(pas)
@@ -112,6 +123,7 @@ def color_alignment(generated, reference):
         pas_list.append(pas)
 
     return np.argmin(pas_list) == 0
+
 
 def true_alignment_score(generated, reference):
     """
@@ -129,10 +141,20 @@ def true_alignment_score(generated, reference):
     return 0
 
 
-# Unit test
+# usage example
 generated = Image.open('generated.jpeg')
 reference = Image.open('reference.jpeg')
 a = true_alignment_score(generated, reference)
-assert a == 1
 
 
+if __name__ == '__main__':
+    df = pd.read_csv("../data/artworks_data_with_prompts_simple_generated_images.csv")
+    a_count = 0
+    for index, row in tqdm(df.iterrows(), total=df.shape[0], desc="Processing Images"):
+        # print("--- ", index, " ---")
+        generated_path = row[('generated_artwork_name')]
+        original_path = row[('image_path_named')]
+        generated = Image.open('generated.jpeg')
+        reference = Image.open('reference.jpeg')
+        a = true_alignment_score(generated, reference)
+        a_count += 1
