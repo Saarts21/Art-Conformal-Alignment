@@ -141,3 +141,14 @@ def feature_extraction(prompt, generated_image):
     shared_elements_count = float(shared_elements_count)
 
     return np.stack((ground_truth_artist, predicted_prob_artists, shared_elements_count))
+
+def prepare_data():
+    table_path = "../data/artworks_data_with_prompts_simple_generated_images"
+    df = pd.read_csv(table_path)
+    for index, row in df.iterrows():
+        prompt = row['prompt']
+        prompt = prompt.replace('_', ' ')
+        row['prompt'] = prompt
+    df.to_csv(table_path)
+
+prepare_data()
