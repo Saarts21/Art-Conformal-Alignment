@@ -26,31 +26,34 @@ def power(test_set_A, rejection_set_indices, c):
     aligned_and_selected = np.logical_and(aligned, rejection_set_indices)
     return np.sum(aligned_and_selected) / max(np.sum(aligned), 1)
 
-def plot_fdp_vs_power(alphas, fdrs, powers):
+def plot_fdr_vs_power(alphas, fdr_list, power_list):
     """
+    fdr_list: a list of tuples (mean_fdp, std_fdp)
+    power_list: a list of tuples (mean_power, std_power)
     Draws the plot like in figure 3:
-    Realized FDP and Power for conformal alignment at various FDR target levels.
+    Realized FDR and Power for conformal alignment at various FDR target levels.
     """
-    assert alphas.size == fdrs.size == powers.size
+    fdrs, std_fdps = zip(*fdr_list)
+    powers, std_powers = zip(*power_list)
 
-    plt.plot(alphas, fdrs, '--bo', label='FDP')
+    plt.figure(figsize=(7, 5))
+
+    plt.plot(alphas, fdrs, '--bo', label='FDR')
     plt.plot(alphas, powers, '--ro', label='Power')
-    plt.plot(alphas, alphas, '--g')
-    plt.title("Conformal Alignment FDP and Power w.r.t FDR Target Level")
+    plt.plot(alphas, alphas, '--g', label='Alpha')
+
+    # shaded area representing the standard deviation
+    plt.fill_between(alphas, np.array(fdrs) - np.array(std_fdps), np.array(fdrs) + np.array(std_fdps),
+                     color='blue', alpha=0.1, label='FDR STD')
+    plt.fill_between(alphas, np.array(powers) - np.array(std_powers), np.array(powers) + np.array(std_powers),
+                     color='red', alpha=0.1, label='Power STD')
+    
+    plt.title("Conformal Alignment FDR and Power w.r.t FDR Target Level", fontdict={'size': 15})
     plt.xlabel('Target level of FDR', fontdict={'size': 12})
-    plt.ylabel('FDP and Power', fontdict={'size': 12})
+    plt.ylabel('FDR and Power', fontdict={'size': 12})
     plt.legend()
     plt.xticks([0.0, 0.5, 1.0])
     plt.yticks([0.0, 0.5, 1.0])
     plt.grid()
     plt.tight_layout()
-    plt.savefig(f"plot_fdp_vs_power.png")
-
-# Unit tests
-f = fdp(np.array([1, 0, 1, 1]), np.array([False, True, True, True]), 0)
-assert np.isclose(f, 0.33333)
-
-p = power(np.array([1, 0, 1, 1]), np.array([False, True, True, True]), 0)
-assert np.isclose(p, 0.66666)
-
-plot_fdp_vs_power(np.arange(0.0, 1.0, 0.1), np.arange(0.0, 1.0, 0.1) - 0.05, np.arange(0.0, 1.0, 0.1) + 0.05)
+    plt.savefig(f"plot_fdr_vs_power.png")

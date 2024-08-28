@@ -138,6 +138,7 @@ def artist_string_to_index(artist_string):
         if artist_string == row['name']:
             return index
 
+
 def feature_extraction(prompt, generated_image):
     """
     generated_image is path
@@ -156,6 +157,7 @@ def feature_extraction(prompt, generated_image):
     shared_elements_count = float(shared_elements_count)
 
     return ground_truth_artist, predicted_prob_artists, shared_elements_count
+
 
 def extract_features_from_data():
     table_path = "data.csv"
@@ -185,38 +187,3 @@ def extract_features_from_data():
     df['predicted_prob_artists_vector'] = features_dict['predicted_prob_artists_vector']
     df['shared_elements_count'] = features_dict['shared_elements_count']
     df.to_csv(table_path, index=False)
-
-
-def parse_out_objects():
-    table_path = "data.csv"
-    df = pd.read_csv(table_path)
-    results = []
-
-    for i, row in df.iterrows():
-        if i == 159 or i == 732:
-            print(f"--- row {i} ---")
-
-            prompt = row['prompt']
-            generated_image_path = row['generated_artwork_name']
-
-            objects_list = extract_objects_from_generated_image(generated_image_path)
-
-            print(f"objects list: {objects_list}")
-
-            shared_elements_count = count_objects_in_prompt(prompt, objects_list)
-            shared_elements_count = float(shared_elements_count)
-            print(f"shared_elements_count: {shared_elements_count}")
-
-            results.append(shared_elements_count)
-            df.at[i, 'shared_elements_count'] = shared_elements_count
-            df.to_csv(table_path, index=False)
-
-            with open("backup.txt", 'a') as file:
-                file.write(f"{i}: {shared_elements_count}\n")
-
-    print(results)
-    # df['shared_elements_count'] = results
-    # df.to_csv(table_path, index=False)
-
-
-parse_out_objects()

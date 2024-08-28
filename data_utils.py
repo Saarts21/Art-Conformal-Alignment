@@ -21,27 +21,48 @@ def convert_string_to_numpy_array(s):
     lst = s.split()
     return np.array(lst, dtype=float)
 
-def count_aligned_and_correct_artist_pred():
+def count_aligned_and_correct_artist_pred(c):
     table_path = "data.csv"
     df = pd.read_csv(table_path)
 
     count = 0
     pred_count = 0
     align_count = 0
+    elements_count = 0
+    hist = {}
+
+    good_results = []
     for i, row in df.iterrows():
-        b_pred = b_align = False
+        b_pred = b_align = b_elem = False
         ground_truth_index = np.argmax(convert_string_to_numpy_array(df['ground_truth_artist_vector'][i]))
         predicted_index = np.argmax(convert_string_to_numpy_array(df['predicted_prob_artists_vector'][i]))
+        shared_elements = df['shared_elements_count'][i]
+        artist = df['artist_name'][i]
         print(f"ground_truth_index = {ground_truth_index}, predicted_index = {predicted_index}")
         if ground_truth_index == predicted_index:
             b_pred = True
             pred_count += 1
-        if df['alignment_score'][i] == 1:
+        if df['new_alignment_score'][i] > c:
             b_align = True
             align_count += 1
-        if b_pred and b_align:
+            if artist not in hist.keys():
+                hist[artist] = 1
+            else:
+                hist[artist] += 1
+        if shared_elements > 0:
+            b_elem = True
+            elements_count += 1
+        if b_pred and b_elem and b_align:
             count += 1
-    print(f"aligned: {align_count}, predicted: {pred_count}, intersection: {count}")
+            good_results.append(i)
+            # if artist not in hist.keys():
+            #     hist[artist] = 1
+            # else:
+            #     hist[artist] += 1
+    
+    print(f"aligned: {align_count}, predicted: {pred_count}, elements > 0: {elements_count}, intersection: {count}")
+    print(good_results)
+    print(hist)
 
 def parse_out_objects():
     objects_list_pattern = r"generated_image_objects:\s*(\[[^\]]*\])"
@@ -97,3 +118,4 @@ def take_2():
 
     df.to_csv(table_path, index=False)
 
+count_aligned_and_correct_artist_pred(0.8)
